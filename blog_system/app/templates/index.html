@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 16px 40px;
+            background: #f5f5f5;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        nav a {
+            color: #0070f3;
+            text-decoration: none;
+            margin: 0 6px;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        h1 {
+            margin: 8px 0 16px;
+        }
+        .post {
+            background: #fff;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .post-title {
+            font-size: 20px;
+            margin: 0 0 8px;
+        }
+        .post-content {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        .empty {
+            text-align: center;
+            color: #777;
+            margin-top: 40px;
+        }
+        .form-block {
+            background: #fff;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .form-block h2 {
+            margin-top: 0;
+        }
+        .form-block input[type="text"],
+        .form-block textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0 8px;
+            box-sizing: border-box;
+        }
+        .form-block button {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        .comment-form input[type="text"] {
+            box-sizing: border-box;
+        }
+        .comment-list {
+            margin: 0 0 8px;
+            padding-left: 18px;
+        }
+        .favorite-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .favorite-btn.add {
+            background: #0070f3;
+            color: white;
+        }
+        .favorite-btn.remove {
+            background: #ff4444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Главная</a> |
+            <a href="/favorites">Избранное</a> |
+            <a href="/profile">Профиль</a> |
+            <a href="/login">Вход</a> |
+            <a href="/logout">Выход</a> |
+            <a href="/register">Регистрация</a>
+        </nav>
+        <h1>Блог</h1>
+    </header>
+
+    <!-- Поиск по постам -->
+    <div class="form-block" style="text-align:center;">
+        <form method="get" action="/">
+            <input
+                type="text"
+                name="q"
+                placeholder="Поиск по постам"
+                value="{{ request.query_params.get('q', '') }}"
+            >
+            <button type="submit">Найти</button>
+        </form>
+    </div>
+
+    <!-- Создание поста -->
+    <div class="form-block">
+        <h2>Создать пост</h2>
+        <form method="post" action="/posts/">
+            <div>
+                <input type="text" name="title" placeholder="Заголовок" required>
+            </div>
+            <div>
+                <textarea name="content" placeholder="Текст поста" required rows="4"></textarea>
+            </div>
+            <button type="submit">Опубликовать</button>
+        </form>
+    </div>
+
+    <!-- Лента постов -->
+            {% if posts %}
+                {% for post in posts %}
+                    <div class="post">
+                        <h2 class="post-title">{{ post.title }}</h2>
+                        <p class="post-content">{{ post.content }}</p>
+
+                        <!-- Автор поста -->
+                        <p style="color:#666; font-size:14px;">
+                            Автор: ID {{ post.user_id }} | 
+                            <a href="/?q={{ post.title }}">Поиск похожих</a>
+                        </p>
+
+                        <!-- Комментарии к посту -->
+                        <h3>Комментарии</h3>
+                        {% set comments = comments_by_post.get(post.id, []) %}
+                        {% if comments %}
+                            <ul class="comment-list">
+                                {% for comment in comments %}
+                                    <li><strong>{{ comment.author }}:</strong> {{ comment.text }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p style="color:#777;">Пока нет комментариев.</p>
+                        {% endif %}
+
+                        <!-- Форма добавления комментария -->
+                        <form class="comment-form" method="post" action="/posts/{{ post.id }}/comments" style="margin-top:8px;">
+                            <input type="text" name="author" placeholder="Ваше имя" required style="width:30%;padding:4px;">
+                            <input type="text" name="text" placeholder="Комментарий" required style="width:55%;padding:4px;">
+                            <button type="submit" style="padding:4px 8px;">Отправить</button>
+                        </form>
+
+                        <!-- Избранное -->
+                        {% set current_user_id = request.cookies.get('user_id', '1') | int %}
+                        {% set user_favs = favorites_db.get(current_user_id, []) %}
+                        {% set is_favorite = post.id in user_favs %}
+                        
+                        {% if is_favorite %}
+                            <form method="post" action="/posts/{{ post.id }}/unfavorite" style="margin-top:8px;">
+                                <button type="submit" class="favorite-btn remove">⭐ Убрать из избранного</button>
+                            </form>
+                        {% else %}
+                            <form method="post" action="/posts/{{ post.id }}/favorite" style="margin-top:8px;">
+                                <button type="submit" class="favorite-btn add">+ Добавить в избранное</button>
+                            </form>
+                        {% endif %}
+
+                        <!-- ✅ РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ -->
+                        <div style="margin-top:12px; padding-top:12px; border-top:1px solid #eee;">
+                            <form method="post" action="/posts/{{ post.id }}/edit" style="display:inline;">
+                                <input type="text" name="title" value="{{ post.title }}" 
+                                    style="width:25%; padding:4px; margin-right:4px;" required>
+                                <textarea name="content" style="width:40%; padding:4px; height:50px; margin-right:4px;" required>{{ post.content }}</textarea>
+                                <button type="submit" style="padding:4px 8px; background:#0070f3; color:white;">✏️ Сохранить</button>
+                            </form>
+                            
+                            <form method="post" action="/posts/{{ post.id }}/delete" 
+                                style="display:inline;" onsubmit="return confirm('Удалить пост навсегда?')">
+                                <button type="submit" style="padding:4px 8px; background:#ff4444; color:white;">🗑️ Удалить</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty">Пока нет ни одного поста. Создайте первый через форму 🙂</p>
+            {% endif %}
+
+
+                <!-- Комментарии к посту -->
+                <h3>Комментарии</h3>
+                {% set comments = comments_by_post.get(post.id, []) %}
+                {% if comments %}
+                    <ul class="comment-list">
+                        {% for comment in comments %}
+                            <li><strong>{{ comment.author }}:</strong> {{ comment.text }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p style="color:#777;">Пока нет комментариев.</p>
+                {% endif %}
+
+                <!-- Форма добавления комментария -->
+                <form class="comment-form" method="post" action="/posts/{{ post.id }}/comments" style="margin-top:8px;">
+                    <input type="text" name="author" placeholder="Ваше имя" required
+                           style="width:30%;padding:4px;">
+                    <input type="text" name="text" placeholder="Комментарий" required
+                           style="width:55%;padding:4px;">
+                    <button type="submit" style="padding:4px 8px;">Отправить</button>
+                </form>
+
+                <!-- ✅ ИЗБРАННОЕ С ПРОВЕРКОЙ СОСТОЯНИЯ -->
+                
+                {% set current_user_id = request.cookies.get('user_id', '1') | int %}
+                {% set user_favs = favorites_db.get(current_user_id, []) %}
+                {% set is_favorite = post.id in user_favs %}
+
+                {% if is_favorite %}
+                    <form method="post" action="/posts/{{ post.id }}/unfavorite" style="margin-top:8px;">
+                        <button type="submit" class="favorite-btn remove">⭐ Убрать из избранного</button>
+                    </form>
+                {% else %}
+                    <form method="post" action="/posts/{{ post.id }}/favorite" style="margin-top:8px;">
+                        <button type="submit" class="favorite-btn add">+ Добавить в избранное</button>
+                    </form>
+                {% endif %}
+
+                <!-- Редактирование/удаление -->
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;">
+                    <form method="post" action="/posts/{{ post.id }}/edit" style="display:inline-block;width:70%;">
+                        <input type="text" name="title" value="{{ post.title }}" style="width:30%;padding:4px;" required>
+                        <textarea name="content" style="width:60%;padding:4px;height:40px;vertical-align:top;">{{ post.content }}</textarea>
+                        <button type="submit" style="padding:3px 6px;background:#28a745;color:white;">Сохранить</button>
+                    </form>
+                    <form method="post" action="/posts/{{ post.id }}/delete" style="display:inline-block;" onsubmit="return confirm('Удалить?')">
+                        <button type="submit" style="padding:3px 6px;background:#dc3545;color:white;">Удалить</button>
+                    </form>
+                </div>
+
+
+                
+
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="empty">Пока нет ни одного поста. Создайте первый через форму 🙂</p>
+    {% endif %}
+</body>
+</html>

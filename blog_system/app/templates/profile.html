@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+</head>
+<body>
+<nav style="text-align:center; margin-bottom: 24px;">
+    <a href="/">Главная</a> |
+    <a href="/profile">Профиль</a> |
+    <a href="/register">Регистрация</a> |
+    <a href="/login">Вход</a>
+</nav>
+
+<h1>Профиль пользователя</h1>
+
+{% if user %}
+    <p><strong>ID:</strong> {{ user.id }}</p>
+    <p><strong>Имя пользователя:</strong> {{ user.username }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Роль:</strong> {{ user.role }}</p>
+
+    <h2>Редактировать профиль</h2>
+    <form method="post" action="/profile">
+        <div>
+            <input type="text" name="username" placeholder="Имя пользователя"
+                   value="{{ user.username }}" required>
+        </div>
+        <div>
+            <input type="email" name="email" placeholder="Email"
+                   value="{{ user.email }}" required>
+        </div>
+        <button type="submit">Сохранить изменения</button>
+    </form>
+{% else %}
+    <p>Пользователь не найден. Возможно, вы не авторизованы.</p>
+{% endif %}
+</body>
+</html>
